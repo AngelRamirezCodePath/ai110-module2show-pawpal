@@ -17,6 +17,11 @@ class Pet:
     age: int
     special_needs: list = field(default_factory=list)
     medical_conditions: list = field(default_factory=list)
+    tasks: list = field(default_factory=list)
+
+    def add_task(self, task: "Task") -> None:
+        """Append a task to this pet's task list."""
+        self.tasks.append(task)
 
     def get_info(self) -> str:
         """Return a human-readable pet profile summary."""
@@ -65,8 +70,13 @@ class Task:
     frequency: str         # "DAILY", "WEEKLY", "MONTHLY", "AS_NEEDED"
     description: str = ""
     time_window: str = ""  # "morning", "afternoon", "evening", or ""
+    completed: bool = False
     # Fix: tasks belong to a specific pet so the scheduler can filter by pet
     pet: Optional["Pet"] = field(default=None, repr=False)
+
+    def mark_complete(self) -> None:
+        """Mark this task as completed."""
+        self.completed = True
 
     def get_duration(self) -> int:
         """Return task duration in minutes."""
