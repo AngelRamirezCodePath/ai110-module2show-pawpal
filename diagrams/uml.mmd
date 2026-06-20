@@ -1,15 +1,70 @@
 classDiagram
-    %% Replace the placeholders below with your actual classes, attributes, methods, and relationships.
-    %% Keep this file updated so it matches your final implementation.
+    %% PawPal+ Class Diagram — keep updated to match implementation
 
-    class ClassName {
-        +type attribute
-        +method() returnType
+    class Pet {
+        +str name
+        +str species
+        +str breed
+        +int age
+        +list special_needs
+        +list medical_conditions
+        +get_info() str
+        +add_special_need(need: str) None
+        +requires_task(task_type: str) bool
     }
 
-    class AnotherClass {
-        +type attribute
-        +method() returnType
+    class Owner {
+        +str name
+        +float available_hours
+        +dict preferences
+        +str contact_info
+        +set_availability(hours: float) None
+        +update_preferences(prefs: dict) None
+        +get_available_time() float
     }
 
-    ClassName --> AnotherClass : relationship
+    class Task {
+        +str name
+        +int duration
+        +str priority
+        +str frequency
+        +str description
+        +str time_window
+        +get_duration() int
+        +is_critical() bool
+        +is_recurring(frequency: str) bool
+        +can_schedule_at(time: str) bool
+    }
+
+    class DailyPlan {
+        +str date
+        +Pet pet
+        +list scheduled_tasks
+        +int total_time_used
+        +str notes
+        +add_task(task: Task, start_time: str) None
+        +remove_task(task: Task) None
+        +get_tasks_ordered() list
+        +calculate_total_time() int
+        +has_conflicts() bool
+        +get_summary() str
+    }
+
+    class Scheduler {
+        +Pet pet
+        +Owner owner
+        +list available_tasks
+        +generate_daily_plan() DailyPlan
+        +sort_tasks_by_priority() list
+        +filter_tasks(available_time: float) list
+        +fit_tasks_into_timeline(time_available: float) list
+        +validate_plan(plan: DailyPlan) bool
+        +explain_plan(plan: DailyPlan) str
+    }
+
+    Owner "1" --> "1..*" Pet : owns
+    Pet "1" --> "0..*" Task : has
+    Scheduler --> Pet : plans for
+    Scheduler --> Owner : respects constraints of
+    Scheduler --> DailyPlan : generates
+    DailyPlan "1" --> "0..*" Task : schedules

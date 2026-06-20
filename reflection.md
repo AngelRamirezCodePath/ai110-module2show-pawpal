@@ -4,6 +4,14 @@
 
 **a. Initial design**
 
+The three core actions a user should be able to perform in PawPal+ are:
+
+1. **Enter owner and pet information** — The user provides basic context about themselves and their pet (name, species, breed, age, and any relevant constraints like time available per day). This seeds the system with the data it needs to personalize every plan.
+
+2. **Add and manage care tasks** — The user creates, edits, or removes individual care tasks (such as walks, feedings, medication, or grooming), specifying at minimum a duration and a priority level for each task. This builds the task list that the scheduler works from.
+
+3. **Generate a daily care plan** — The user triggers the scheduler to produce a prioritized, time-blocked daily schedule based on their available time and the tasks they have defined. The app displays the resulting plan and explains why tasks were ordered or excluded the way they were.
+
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
