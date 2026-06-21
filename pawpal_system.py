@@ -126,10 +126,7 @@ class DailyPlan:
 
     def get_tasks_ordered(self) -> list:
         """Return scheduled tasks sorted by start time."""
-        def _to_minutes(start_str: str) -> int:
-            h, m = map(int, start_str.split(":"))
-            return h * 60 + m
-        return sorted(self.scheduled_tasks, key=lambda item: _to_minutes(item[1]))
+        return sorted(self.scheduled_tasks, key=lambda item: tuple(map(int, item[1].split(":"))))
 
     def calculate_total_time(self) -> int:
         """Sum durations of all scheduled tasks and update total_time_used."""
@@ -186,7 +183,7 @@ class Scheduler:
         ordered = self.assign_time_windows(kept)
         scheduled = self.pack_into_slots(ordered, self.owner.get_available_time())
 
-        for task, start_time in scheduled:
+        for task, start_time in self.sort_by_time(scheduled):
             plan.add_task(task, start_time)
 
         plan.notes = self.explain_plan(plan, dropped)
@@ -250,6 +247,132 @@ class Scheduler:
             time_used += task.duration
 
         return result
+
+    def complete_task(self, task: Task) -> Optional[Task]:
+        """Mark a task complete and automatically queue its next occurrence.
+
+        Calls task.mark_complete(), then — for DAILY or WEEKLY tasks — creates
+        an identical Task with completed=False and appends it to available_tasks
+        so it will appear in the next generated plan. If available_tasks and
+        task.pet.tasks are different list objects, the new task is added to both.
+
+        MONTHLY and AS_NEEDED tasks are marked done but produce no recurrence
+        because their schedule is not predictable on a fixed cadence.
+
+        Args:
+            task: The Task to complete. Must already be in available_tasks.
+
+        Returns:
+            The newly created next-occurrence Task, or None if no recurrence
+            was scheduled (MONTHLY / AS_NEEDED frequency).
+        """
+        task.mark_complete()
+        if task.frequency.upper() not in ("DAILY", "WEEKLY"):
+            return None
+
+        next_task = Task(
+            name=task.name,
+            duration=task.duration,
+            priority=task.priority,
+            frequency=task.frequency,
+            description=task.description,
+            time_window=task.time_window,
+            pet=task.pet,
+        )
+        self.available_tasks.append(next_task)
+        if task.pet is not None and self.available_tasks is not task.pet.tasks:
+            task.pet.add_task(next_task)
+        return next_task
+
+    def filter_tasks_by(self, tasks: list, *, pet_name: str = None, completed: bool = None) -> list:
+        """Return a subset of tasks matching the given criteria.
+
+        Filters are applied with AND logic: a task must satisfy every supplied
+        filter to be included. Both filters are keyword-only and optional —
+        omit either to skip that check entirely.
+
+        Args:
+            tasks:      The flat list of Task objects to filter (e.g. available_tasks).
+            pet_name:   Case-insensitive pet name to match against task.pet.name.
+                        Tasks with no pet assigned (task.pet is None) are excluded
+                        when this filter is active.
+            completed:  Pass True to keep only completed tasks, False for pending only.
+
+        Returns:
+            A new list containing only the tasks that pass all active filters.
+        """
+        result = tasks
+        if pet_name is not None:
+            result = [t for t in result if t.pet is not None and t.pet.name.lower() == pet_name.lower()]
+        if completed is not None:
+            result = [t for t in result if t.completed == completed]
+        return result
+
+    def sort_by_time(self, scheduled: list) -> list:
+        """Return (Task, start_time_str) tuples sorted chronologically by start time.
+
+        Uses a lambda as the sort key: each 'HH:MM' string is split on ':' and
+        converted to a (hours, minutes) int tuple so Python's tuple comparison
+        sorts by hour first, then minute. Zero-padded strings would sort correctly
+        as plain strings too, but the numeric conversion makes the intent explicit
+        and handles any non-padded inputs safely.
+
+        Args:
+            scheduled: list of (Task, 'HH:MM') tuples, in any order.
+
+        Returns:
+            A new sorted list; the original is not mutated.
+        """
+        return sorted(scheduled, key=lambda item: tuple(map(int, item[1].split(":"))))
+
+    def find_conflicts(self, *plans: DailyPlan) -> list:
+        """Return human-readable warning strings for every overlapping task pair.
+
+        Strategy: all scheduled tasks from every supplied plan are flattened into
+        a list of (task, start_min, end_min, pet_name) tuples. Every unique pair
+        is then tested with the standard interval-overlap condition:
+            start_A < end_B  AND  start_B < end_A
+        This is O(n²) in the number of scheduled tasks — acceptable for the small
+        daily task lists PawPal+ works with.
+
+        Passing one plan checks for same-pet conflicts (two tasks for Rex at 08:00).
+        Passing two or more plans checks cross-pet conflicts as well (Rex at 09:00
+        and Mochi at 09:30 with a 60-min vet visit overlap).
+
+        Never raises — a plan with zero scheduled tasks simply contributes nothing.
+
+        Args:
+            *plans: One or more DailyPlan objects to inspect.
+
+        Returns:
+            A list of warning strings, one per overlapping pair. Empty list means
+            no conflicts were found.
+        """
+        def _to_min(s: str) -> int:
+            h, m = map(int, s.split(":"))
+            return h * 60 + m
+
+        # Flatten all plans into (task, start_min, end_min, plan_label) tuples
+        items = []
+        for plan in plans:
+            label = plan.pet.name
+            for task, start_str in plan.scheduled_tasks:
+                start = _to_min(start_str)
+                items.append((task, start, start + task.duration, label))
+
+        warnings = []
+        for i in range(len(items)):
+            for j in range(i + 1, len(items)):
+                task_a, s_a, e_a, pet_a = items[i]
+                task_b, s_b, e_b, pet_b = items[j]
+                if s_a < e_b and s_b < e_a:
+                    warnings.append(
+                        f"WARNING: '{task_a.name}' ({pet_a}, "
+                        f"{s_a // 60:02d}:{s_a % 60:02d}–{e_a // 60:02d}:{e_a % 60:02d}) "
+                        f"overlaps '{task_b.name}' ({pet_b}, "
+                        f"{s_b // 60:02d}:{s_b % 60:02d}–{e_b // 60:02d}:{e_b % 60:02d})"
+                    )
+        return warnings
 
     def validate_plan(self, plan: DailyPlan) -> bool:
         """Return True if the plan has no conflicts and fits within available time."""

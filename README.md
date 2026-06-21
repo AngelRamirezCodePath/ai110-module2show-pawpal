@@ -87,14 +87,16 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
-
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| **Priority sorting** | `Scheduler.sort_tasks_by_priority()` | Tasks are sorted HIGH → MEDIUM → LOW before time-fitting so the most important care always gets a slot first. |
+| **Chronological sorting** | `Scheduler.sort_by_time()` | Uses `sorted()` with a lambda key that converts each `'HH:MM'` string to an `(hours, minutes)` int tuple, ensuring the schedule displays in wall-clock order regardless of insertion order. |
+| **Filtering by pet or status** | `Scheduler.filter_tasks_by()` | Keyword-only `pet_name` and `completed` filters can be combined (AND logic). Used to list pending tasks, show per-pet workloads, or find what's already done. |
+| **Budget filtering** | `Scheduler.filter_tasks()` | Walks the priority-sorted list and drops tasks that would exceed the owner's available-time budget; returns both kept and dropped lists so the plan can explain every exclusion. |
+| **Conflict detection** | `Scheduler.find_conflicts()` | Accepts one or more `DailyPlan` objects and checks every task pair with the interval-overlap condition (`start_A < end_B and start_B < end_A`). Returns plain-English warning strings rather than raising — safe to call at any point without crashing the app. Detects same-pet and cross-pet overlaps. |
+| **Recurring task auto-scheduling** | `Scheduler.complete_task()` | Marking a `DAILY` or `WEEKLY` task complete automatically appends an identical pending task to `available_tasks`, so it re-appears in the next generated plan. `MONTHLY` and `AS_NEEDED` tasks are completed without creating a recurrence. |
+| **Time-window grouping** | `Scheduler.assign_time_windows()` | Tasks that declare a `time_window` preference (`morning`, `afternoon`, `evening`) are grouped into ordered buckets before slot assignment, so a fetch session never gets pushed to 08:01 ahead of an afternoon preference. |
+| **Slot packing** | `Scheduler.pack_into_slots()` | A single advancing cursor starts at 08:00 and jumps forward to the window's canonical start time (08:00 / 12:00 / 18:00) whenever a windowed task needs it — preventing gaps from appearing in the wrong place. |
 
 ## 📸 Demo Walkthrough
 
