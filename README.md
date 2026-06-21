@@ -99,7 +99,26 @@ The test suite in `tests/test_pawpal.py` covers the following behaviors:
 Sample test output:
 
 ```
-# Paste your pytest output here
+(.venv) (base) angel@Angels-MacBook-Air-94 ai110-module2show-pawpal % python -m pytest -v 
+========================================================================== test session starts ==========================================================================
+platform darwin -- Python 3.13.5, pytest-9.1.1, pluggy-1.6.0 -- /Users/angel/Documents/TF Folder/ai110-module2show-pawpal/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/angel/Documents/TF Folder/ai110-module2show-pawpal
+plugins: anyio-4.14.0
+collected 9 items                                                                                                                                                       
+
+tests/test_pawpal.py::test_mark_complete_changes_status PASSED                                                                                                    [ 11%]
+tests/test_pawpal.py::test_add_task_increases_pet_task_count PASSED                                                                                               [ 22%]
+tests/test_pawpal.py::test_sort_by_time_returns_chronological_order PASSED                                                                                        [ 33%]
+tests/test_pawpal.py::test_generate_daily_plan_tasks_in_chronological_order PASSED                                                                                [ 44%]
+tests/test_pawpal.py::test_complete_daily_task_creates_new_pending_task PASSED                                                                                    [ 55%]
+tests/test_pawpal.py::test_complete_monthly_task_creates_no_recurrence PASSED                                                                                     [ 66%]
+tests/test_pawpal.py::test_find_conflicts_flags_overlapping_tasks PASSED                                                                                          [ 77%]
+tests/test_pawpal.py::test_find_conflicts_no_false_positive_for_back_to_back PASSED                                                                               [ 88%]
+tests/test_pawpal.py::test_find_conflicts_detects_cross_pet_overlap PASSED                                                                                        [100%]
+
+=========================================================================== 9 passed in 0.02s ===========================================================================
+(.venv) (base) angel@Angels-MacBook-Air-94 ai110-module2show-pawpal % 
 ```
 
 ## 📐 Smarter Scheduling
