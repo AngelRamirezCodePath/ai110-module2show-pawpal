@@ -73,11 +73,28 @@ Scheduled 3 task(s) using 30 of 120 available minutes.
 
 ```bash
 # Run the full test suite:
-pytest
+python -m pytest
+
+# Run with verbose output to see each test name:
+python -m pytest -v
 
 # Run with coverage:
-pytest --cov
+python -m pytest --cov
 ```
+
+The test suite in `tests/test_pawpal.py` covers the following behaviors:
+
+| Test | What it verifies |
+|------|-----------------|
+| `test_mark_complete_changes_status` | `Task.mark_complete()` flips `completed` from `False` to `True` |
+| `test_add_task_increases_pet_task_count` | `Pet.add_task()` appends the task and grows the list by one |
+| `test_sort_by_time_returns_chronological_order` | `Scheduler.sort_by_time()` orders `(Task, 'HH:MM')` tuples by wall-clock time regardless of insertion order |
+| `test_generate_daily_plan_tasks_in_chronological_order` | `generate_daily_plan()` produces a plan whose tasks appear in time order from morning → afternoon → evening |
+| `test_complete_daily_task_creates_new_pending_task` | Completing a `DAILY` task returns a new uncompleted copy and adds it to `available_tasks` |
+| `test_complete_monthly_task_creates_no_recurrence` | Completing a `MONTHLY` task returns `None` and does not grow `available_tasks` |
+| `test_find_conflicts_flags_overlapping_tasks` | `find_conflicts()` emits a `WARNING` string when two tasks share overlapping time slots |
+| `test_find_conflicts_no_false_positive_for_back_to_back` | Back-to-back tasks (A ends at 08:30, B starts at 08:30) are **not** flagged as a conflict |
+| `test_find_conflicts_detects_cross_pet_overlap` | `find_conflicts()` catches overlapping tasks across two different pets' plans |
 
 Sample test output:
 
