@@ -98,6 +98,8 @@ The test suite in `tests/test_pawpal.py` covers the following behaviors:
 
 Sample test output:
 
+![pytest 9 passed](Screenshot%202026-06-20%20at%207.55.57%E2%80%AFPM.png)
+
 ```
 (.venv) (base) angel@Angels-MacBook-Air-94 ai110-module2show-pawpal % python -m pytest -v 
 ========================================================================== test session starts ==========================================================================
@@ -136,12 +138,153 @@ tests/test_pawpal.py::test_find_conflicts_detects_cross_pet_overlap PASSED      
 
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+### UI Overview
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+PawPal+ is a single-page Streamlit app with four sections, top to bottom:
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+| Section | What you can do |
+|---------|----------------|
+| **Owner & Pet Setup** | Enter the owner's name, how many hours are available today, the pet's name, and species. Changes take effect immediately on every rerun. |
+| **Add a Task** | Type a task title, set its duration in minutes, pick a priority (high / medium / low), and optionally pin it to a time window (morning, afternoon, evening, or any). Click **Add task** to append it to the pet's list. |
+| **Current Tasks** | View all pending tasks in a table sorted HIGH → MEDIUM → LOW by `Scheduler.sort_tasks_by_priority()`. Completed tasks collapse into an expandable section so they stay accessible without cluttering the view. |
+| **Mark Task Complete** | Choose any pending task from the dropdown and click **Mark complete**. Daily and weekly tasks automatically queue a new pending copy via `Scheduler.complete_task()`. |
+| **Build Schedule** | Click **Generate schedule** to run the full scheduling pipeline. The app shows a conflict report (`Scheduler.find_conflicts()`), a time-ordered schedule table, and three metrics (time used / available / remaining). |
+
+---
+
+### Example Workflow
+
+**Step 1 — Enter owner and pet info.**
+Fill in the Owner & Pet Setup form. Here the owner is Angel, with 3 hours available, and the pet is a dog named Star.
+
+![Owner & Pet Setup](Screenshot%202026-06-20%20at%207.51.38%E2%80%AFPM.png)
+
+---
+
+**Step 2 — Add the first task.**
+Enter "Morning walk", 25 minutes, high priority, any time window, then click **Add task**. A green `st.success` banner confirms the addition and the task immediately appears in the **Current Tasks** table sorted by priority.
+
+![Adding Morning walk](Screenshot%202026-06-20%20at%207.51.59%E2%80%AFPM.png)
+
+---
+
+**Step 3 — Add a second task.**
+Add "Feed", 5 minutes, high priority. Both tasks now appear in the priority-sorted table. Because both are HIGH they appear in insertion order within that tier.
+
+![Two tasks in the pending table](Screenshot%202026-06-20%20at%207.52.34%E2%80%AFPM.png)
+
+---
+
+**Step 4 — Mark a task complete.**
+Select "Feed" from the **Mark Task Complete** dropdown and click **Mark complete**. The task moves out of the pending table and into the collapsed **Completed tasks** expander. Because "Feed" is a DAILY task, `Scheduler.complete_task()` automatically queues a fresh pending copy for tomorrow.
+
+![Completed task in expander](Screenshot%202026-06-20%20at%207.53.05%E2%80%AFPM.png)
+
+---
+
+**Step 5 — Generate the schedule.**
+Click **Generate schedule**. The app runs `Scheduler.generate_daily_plan()`, which:
+- sorts tasks HIGH → MEDIUM → LOW (`sort_tasks_by_priority`)
+- drops any tasks that would exceed the time budget (`filter_tasks`)
+- groups tasks into morning / afternoon / evening buckets (`assign_time_windows`)
+- packs them into concrete start times from 08:00 onward (`pack_into_slots`)
+- re-sorts the final list into wall-clock order (`sort_by_time`)
+- checks for overlapping slots and displays each as a `st.warning` (`find_conflicts`)
+
+Three `st.metric` tiles show minutes used, available, and remaining at a glance. A green `st.success` banner confirms no conflicts were found, and a blue `st.info` note summarizes how many tasks were scheduled and how many minutes were used.
+
+![Generated schedule with metrics](Screenshot%202026-06-20%20at%208.02.39%E2%80%AFPM.png)
+
+---
+
+### Key Scheduler Behaviors Shown
+
+| Behavior | Where you see it |
+|----------|-----------------|
+| Priority sorting (HIGH → MEDIUM → LOW) | **Current Tasks** table updates live after every Add |
+| Time-window grouping | Tasks pinned to morning/afternoon/evening always appear in that order in the schedule, regardless of when they were added |
+| Conflict detection | If two tasks overlap in the generated plan, a yellow `st.warning` appears for each overlapping pair |
+| Recurring task auto-scheduling | Completing a DAILY or WEEKLY task shows a success message naming when the next occurrence is queued |
+| Budget filtering | Tasks that would exceed available time are excluded and listed in the explanation note below the schedule |
+
+---
+
+### Sample CLI Output (`python main.py`)
+
+```
+====================================================
+          TODAY'S SCHEDULE  (sort_by_time)
+====================================================
+Daily Plan for Biscuit (Dog) — 2026-06-20
+----------------------------------------------------
+  08:00 — Morning walk (30 min) [high]
+  08:30 — Feeding (10 min) [high]
+  12:00 — Fetch session (20 min) [medium]
+----------------------------------------------------
+Total: 60 min used / 120 min available
+
+Scheduled 3 task(s) using 60 of 120 available minutes.
+
+Daily Plan for Luna (Cat) — 2026-06-20
+----------------------------------------------------
+  08:00 — Feeding (10 min) [high]
+  08:10 — Medication (5 min) [high]
+  18:00 — Brushing (15 min) [medium]
+----------------------------------------------------
+Total: 30 min used / 120 min available
+
+Scheduled 3 task(s) using 30 of 120 available minutes.
+
+====================================================
+     FILTER: tasks belonging to Biscuit
+====================================================
+  [pending] Fetch session (20 min, MEDIUM)
+  [done] Morning walk (30 min, HIGH)
+  [pending] Feeding (10 min, HIGH)
+
+====================================================
+     FILTER: completed tasks (all pets)
+====================================================
+  [done]    Morning walk — Biscuit
+  [done]    Medication — Luna
+
+====================================================
+     FILTER: pending tasks (all pets)
+====================================================
+  [pending] Fetch session — Biscuit
+  [pending] Feeding — Biscuit
+  [pending] Brushing — Luna
+  [pending] Feeding — Luna
+
+====================================================
+     FILTER: pending tasks for Luna only
+====================================================
+  [pending] Brushing (15 min, MEDIUM)
+  [pending] Feeding (10 min, HIGH)
+
+====================================================
+     AUTO-RECURRENCE: complete_task()
+====================================================
+  Completed : Feeding (Biscuit) [DAILY]
+  Scheduled : Feeding for tomorrow (pending=True)
+  Completed : Brushing (Luna) [WEEKLY]
+  Scheduled : Brushing for next week (pending=True)
+
+  Pending tasks after auto-recurrence:
+    [pending] Fetch session — Biscuit [DAILY]
+    [pending] Feeding — Luna [DAILY]
+    [pending] Feeding — Biscuit [DAILY]
+    [pending] Brushing — Luna [WEEKLY]
+
+====================================================
+     CONFLICT DETECTION: find_conflicts()
+====================================================
+  -- Same-pet conflicts (Rex) --
+  WARNING: 'Morning walk' (Rex, 08:00–08:30) overlaps 'Feeding' (Rex, 08:00–08:10)
+
+  -- Cross-pet conflicts (Rex + Mochi) --
+  WARNING: 'Vet visit' (Rex, 09:00–10:00) overlaps 'Grooming' (Mochi, 09:30–10:15)
+
+  -- Clean plan (no conflicts expected) --
+  No conflicts found.
+```
